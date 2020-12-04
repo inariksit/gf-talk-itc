@@ -18,8 +18,11 @@ resource Subtypes = {
   param
     Bool = True | False ;
 
+------------------
+-- Depth subtyping
+------------------
+
   oper
-    -- Depth subtyping.
     -- Is D <: C?
     C : Type = A ** {c : {}} ;
     D : Type = A ** {c : {b : Bool}} ;
@@ -33,7 +36,12 @@ resource Subtypes = {
     g x = x ** {c = <>} ;        -- Replace original c with empty record
     g' x = x ** {c = x.c ** <>} ; -- Extend original c with empty record
 
+    g'' : D -> D ;
+    g'' x = x ** {c = x.c ** <>} ; -- Extend original c with empty record
+
     {- Testing on the command line.
+    $ gf
+    > i -retain Subtypes.gf
     > cc g c
     {s = "c"; c = <>}
 
@@ -42,10 +50,13 @@ resource Subtypes = {
 
     -- Extending with empty record should work like this
     > cc {b = True} ** <>
-    {b = Subtypes.True}
+    {b = True}
 
     > cc g' d
-    {s = "d"; c = <>} -- Bug? c = ({b = True} ** <>)
+    {s = "d"; c = <>} -- Bug or feature? On line 37, c = (x.c ** <>) ;  in this case x=d, and d.c = {b=True}
+
+    > cc g'' d
+    {s = "d"; c = {b = True}}
 
     > cc g e
     missing record fields: c type of e
@@ -58,13 +69,17 @@ resource Subtypes = {
     inferred: {s : Str}
     -}
 
-    -- Function subtyping
+---------------------
+-- Function subtyping
+---------------------
+
+  -- Imagine these functions are from the Resource Grammar Library.
   param
     Number = Sg | Pl ;
   oper
     -- IDet <: Det
     Det : Type = {s : Str ; n : Number} ; -- determiner: "this", "a"
-    IDet : Type = Det ** {isWh : Bool} ; -- interrogative: "which"
+    IDet : Type = Det ** {isWh : Bool} ; -- interrogative: "which", "how much"
 
     CN : Type = Number => Str ; -- common noun: "song"
 
@@ -86,10 +101,12 @@ resource Subtypes = {
     detCN : Det -> CN -> NP = \det,cn -> {
       s = det.s ++ cn ! det.n ;
       n = det.n ;
-      isPron = False ;
-      } ;
+      isPron = False ; -- We can make NP out of pronouns in other functions, and isPron field is for their sake.
+      } ;              -- DetCN is always applied to common nouns, so isPron is always False.
 
     -- detCN can be used in place of idetCN, so detCN <: idetCN
+    -- IDet has a field that Det doesn't have, but in this particular function, even the IP doesn't need it.
+    -- There can be other functions that take an IDet as an argument, and use the isWh-field.
     idetCN : IDet -> CN -> IP = detCN ;
 
     -- Test
